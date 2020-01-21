@@ -10,25 +10,36 @@ const create = async (req, res) => {
   const categorymodel = new Category();
   const menu = new Menu();
 
- const categoryExists = await find({ name: category.tolower()});
+ const categoryExists = await Category.findOne({ name: category.toLowerCase()});
  console.log(categoryExists);
 
  if (categoryExists) {
   menu.name = name;
   menu.ingredients = ingredients;
   menu.category = categoryExists._id;
-  await menu.save();
+  const newmenu = await menu.save();
 
+  await Category.update(
+    { _id: categoryExists._id },
+    { $push: { menuItems: newmenu._id } }
+  );
   return sendJSONResponse(res, 200, menu, req.method, 'Menu created successfully');
  }
 
- categorymodel.name = category.tolower();
+ categorymodel.name = category.toLowerCase();
  const newCategory = await categorymodel.save();
+ console.log(newCategory);
 
  menu.name = name;
  menu.ingredients = ingredients;
  menu.category = newCategory._id;
- await menu.save();
+ const newMenuItem = await menu.save();
+ console.log(newMenuItem);
+ 
+ await Category.update(
+  { _id: newCategory._id },
+  { $push: { menuItems: newMenuItem._id } }
+);
 
  return sendJSONResponse(res, 200, menu, req.method, 'Menu created successfully');
 };
@@ -36,44 +47,22 @@ const create = async (req, res) => {
 const read = async (req, res) => {
   const page = req.query.page || 1;
   const limit = req.query.limit || 10;
-  const { companyId } = req.params;
-
-  const userProjects = await Permission.findByOrganisation(companyId, req.decoded._id);
-
-  if (!userProjects.length) {
-    return sendJSONResponse(
-      res,
-      200,
-      {
-        projects: [],
-        page: 1,
-        pages: 1,
-        count: 0
-      }
-    );
-  }
-
-  const projectIds = userProjects.map((project) => project.project);
 
   const skip = (page * limit) - limit;
 
-  const projectPromise = Project
-    .findByOrganisation(companyId, projectIds)
+  const menuPromise = Menu
+    .find({ deletedAt: null })
     .populate({
-      path: 'organisation',
-      populate: {
-        path: 'members',
-        select: 'name email photoUrl organisation',
-        model: 'User',
-      },
+      path: 'category',
+      model: 'Category',
     })
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
 
-  const countPromise = Project.findByOrganisation(companyId, projectIds).count();
+  const countPromise = Menu.find({ deletedAt: null }).count();
 
-  const [projects, count] = await Promise.all([projectPromise, countPromise]);
+  const [menu, count] = await Promise.all([menuPromise, countPromise]);
 
   const pages = Math.ceil(count / limit);
 
@@ -81,90 +70,66 @@ const read = async (req, res) => {
     res,
     200,
     {
-      projects, page, pages, count
+      menu, page, pages, count
     },
     req.method,
-    'Projects fetched',
+    'ALL Menu items fetched',
   );
 };
 
 const readOne = async (req, res) => {
-  const { projectId } = req.params;
+  const { menuId } = req.params;
 
-  const project = await Project
-    .findByProjectId(projectId)
+  const menu = await Menu
+    .findByMenuId(menuId)
     .populate({
-      path: 'manager',
-      select: 'name email photoUrl organisation',
-      model: 'User',
+      path: 'category',
+      model: 'Category',
     });
 
-  if (!project) {
-    return sendJSONResponse(res, 404, null, req.method, 'Project not found');
+  if (!menu) {
+    return sendJSONResponse(res, 404, null, req.method, 'Menu Item not found');
   }
-
-  return sendJSONResponse(res, 200, project, req.method, 'Project found');
+  return sendJSONResponse(res, 200, menu, req.method, 'Menu Item found');
 };
 
 const update = async (req, res) => {
-  const {
-    name,
-    description,
-    startDate,
-    endDate,
-    repository,
-    assets,
-    status,
-  } = req.body;
-  const { projectId } = req.params;
+  const { name, ingredients } = req.body;
 
-  const project = await Project.findByProjectId(projectId);
+  const { menuId } = req.params;
 
-  if (!project) {
-    return sendJSONResponse(res, 404, null, req.method, 'Project not found');
+  const menu = await Menu.findByMenuId(menuId);
+
+  if (!menu) {
+    return sendJSONResponse(res, 404, null, req.method, 'Menu Item not found');
   }
 
   if (name) {
-    project.name = name;
+    menu.name = name;
   }
-  if (description) {
-    project.description = description;
+  if (ingredients) {
+    menu.ingredients = ingredients;
   }
-  if (startDate) {
-    project.startDate = startDate;
-  }
-  if (endDate) {
-    project.endDate = endDate;
-  }
-  if (repository) {
-    project.repository = repository;
-  }
-  if (assets) {
-    project.assets = assets;
-  }
-  if (status && projectStatus[status]) {
-    project.status = projectStatus[status];
-  }
+  await menu.save();
 
-  await project.save();
-
-  return sendJSONResponse(res, 200, project, req.method, 'Project updated');
+  return sendJSONResponse(res, 200, menu, req.method, 'Menu Item updated');
 };
 
 const remove = async (req, res) => {
-  const { projectId } = req.params;
+  const { menuId } = req.params;
 
-  const project = await Project.findByProjectId(projectId);
+  const menu = await Menu.findByMenuId(menuId);
 
-  if (!project) {
-    return sendJSONResponse(res, 404, null, req.method, 'Project not found');
+
+  if (!menu) {
+    return sendJSONResponse(res, 404, null, req.method, 'Menu Item not found');
   }
 
-  project.deletedAt = new Date();
+  menu.deletedAt = new Date();
 
-  await project.save();
+  await menu.save();
 
-  return sendJSONResponse(res, 200, null, req.method, 'Project deleted');
+  return sendJSONResponse(res, 200, null, req.method, 'Menu Item deleted');
 };
 
 module.exports = {

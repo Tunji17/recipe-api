@@ -7,6 +7,7 @@ const MenuSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: 'Category'
   },
+  deletedAt: Date,
 }, { timestamps: true });
 
 MenuSchema.index({
@@ -14,12 +15,8 @@ MenuSchema.index({
   name: 1,
 });
 
-// MenuSchema.statics.findAdminSongs = function AdminSongs(songid) {
-//   return this.find({ songid, isAdminSong: true });
-// };
-
-// MenuSchema.statics.findNonAdminSongs = function nonAdminSongs(songid) {
-//   return this.find({ songid, isAdminSong: false });
-// };
+MenuSchema.statics.findByMenuId = function findmenu(id) {
+  return this.findOne({ _id: id, deletedAt: null });
+};
 
 module.exports = mongoose.model('Menu', MenuSchema);

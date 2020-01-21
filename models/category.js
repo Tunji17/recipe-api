@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const CategorySchema = new mongoose.Schema({
   name: String,
+  menuItems: [{
+    type: mongoose.Schema.ObjectId,
+    ref: 'Menu'
+  }],
+  deletedAt: Date,
 }, { timestamps: true });
 
 CategorySchema.index({
@@ -9,12 +14,8 @@ CategorySchema.index({
   name: 1,
 });
 
-// CategorySchema.statics.findAdminSongs = function AdminSongs(songid) {
-//   return this.find({ songid, isAdminSong: true });
-// };
-
-// CategorySchema.statics.findNonAdminSongs = function nonAdminSongs(songid) {
-//   return this.find({ songid, isAdminSong: false });
-// };
+CategorySchema.statics.findByCategoryId = function findcategory(id) {
+  return this.findOne({ _id: id, deletedAt: null });
+};
 
 module.exports = mongoose.model('Category', CategorySchema);

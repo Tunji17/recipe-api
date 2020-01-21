@@ -5,11 +5,6 @@ const { catchErrors, validate } = require('../../../helpers');
 
 const router = express.Router();
 
-router.post(
-  '/',
-  validate(policy.create),
-  catchErrors(controller.create),
-);
 
 router.get(
   '/',
@@ -17,19 +12,14 @@ router.get(
 );
 
 router.get(
-  '/:menuId',
+  '/:categoryId',
   validate(policy.readOne),
   catchErrors(controller.readOne),
 );
 
-router.put(
-  '/:menuId',
-  validate(policy.update),
-  catchErrors(controller.update),
-);
 
 router.delete(
-  '/:menuId',
+  '/:categoryId',
   validate(policy.remove),
   catchErrors(controller.remove),
 );
